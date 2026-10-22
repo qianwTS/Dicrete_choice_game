@@ -2,69 +2,87 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.optimize import minimize
 
-# Page config
-st.set_page_config(page_title="Lunch Choice Simulator", layout="centered")
+st.set_page_config(page_title="Lunch Choice Estimator", layout="centered")
 
-st.title("🍔 Interactive Lunch Choice Forecast")
-st.markdown("Adjust the prices in the sidebar to see how market shares shift based on the **Multinomial Logit (MNL)** model. You can also compare the analytical formula to a brute-force random utility simulation!")
+st.title("🍔 Interactive Lunch Estimator & Forecaster")
+st.markdown("Enter the survey results from the class. The app will estimate the cost parameter (γ) that best explains your choices, and then use it to forecast what happens if prices change!")
 
-# --- SIDEBAR CONTROLS ---
-st.sidebar.header("1. Set Lunch Prices (SEK)")
-cost_meatballs = st.sidebar.slider("Meatballs", min_value=50, max_value=200, value=109, step=1)
-cost_salad = st.sidebar.slider("Salad", min_value=50, max_value=200, value=79, step=1)
-cost_pho = st.sidebar.slider("Pho", min_value=50, max_value=200, value=129, step=1)
-
-st.sidebar.header("2. Model Parameters")
-gamma_cost = st.sidebar.slider("Cost Parameter (γ)", min_value=-0.10, max_value=0.00, value=-0.02, step=0.005)
-num_draws = st.sidebar.select_slider("Random Gumbel Draws", options=[100, 500, 1000, 5000, 10000], value=1000)
-
-# --- MATH & SIMULATION ---
-# 1. Deterministic Utilities (V = gamma * cost)
-V_meatballs = gamma_cost * cost_meatballs
-V_salad = gamma_cost * cost_salad
-V_pho = gamma_cost * cost_pho
-
-V_array = np.array([V_meatballs, V_salad, V_pho])
-
-# 2. Analytical MNL Probabilities
-exp_V = np.exp(V_array)
-analytical_probs = exp_V / np.sum(exp_V)
-
-# 3. Random Utility Simulation (U = V + epsilon)
-np.random.seed(42) # Keeps the random jumps stable visually
-eps = -np.log(-np.log(np.random.rand(num_draws, 3))) # Gumbel draws
-U = V_array + eps
-
-# Find the maximum utility choice for each "person"
-choices = np.argmax(U, axis=1)
-simulated_probs = np.array([np.mean(choices == 0), np.mean(choices == 1), np.mean(choices == 2)])
-
-# --- VISUALIZATION ---
+# Default base prices
+base_costs = np.array([109, 79, 129])
 labels = ['Meatballs', 'Salad', 'Pho']
-costs = [cost_meatballs, cost_salad, cost_pho]
 
-fig, ax = plt.subplots(figsize=(8, 4.5))
-x = np.arange(len(labels))
-width = 0.35
+# --- STEP 1: SURVEY RESULTS ---
+st.header("1. Class Survey Results")
+st.markdown("How many students chose each option at the current prices?")
 
-ax.bar(x - width/2, analytical_probs * 100, width, label='MNL Formula (%)', color='#2ca02c')
-ax.bar(x + width/2, simulated_probs * 100, width, label=f'Simulated ({num_draws} draws) (%)', color='#ff7f0e')
+col1, col2, col3 = st.columns(3)
+with col1:
+    n_meatballs = st.number_input("Meatballs (109 SEK)", min_value=0, value=30, step=1)
+with col2:
+    n_salad = st.number_input("Salad (79 SEK)", min_value=0, value=50, step=1)
+with col3:
+    n_pho = st.number_input("Pho (129 SEK)", min_value=0, value=20, step=1)
 
-ax.set_ylabel('Market Share (%)')
-ax.set_xticks(x)
-ax.set_xticklabels([f"{l}\n({c} SEK)" for l, c in zip(labels, costs)])
-ax.set_ylim(0, 100)
-ax.legend()
-st.pyplot(fig)
+counts = np.array([n_meatballs, n_salad, n_pho])
+total_students = np.sum(counts)
 
-# --- DATA TABLE ---
-st.subheader("Data Summary")
-df = pd.DataFrame({
-    "Option": labels,
-    "Cost (SEK)": costs,
-    "Systematic Utility (V)": np.round(V_array, 2),
-    "Analytical Share": [f"{p*100:.1f}%" for p in analytical_probs],
-    "Simulated Share": [f"{p*100:.1f}%" for p in simulated_probs]
-})
-st.dataframe(df, use_container_width=True)
+# --- STEP 2: ESTIMATION (MLE) ---
+st.header("2. MNL Model Estimation")
+
+if total_students == 0:
+    st.warning("Please enter at least one vote to estimate the model.")
+else:
+    # Maximum Likelihood Estimation function
+    def neg_log_likelihood(gamma):
+        V = gamma[0] * base_costs
+        # Subtract max V for numerical stability in exponentiation
+        exp_V = np.exp(V - np.max(V))
+        P = exp_V / np.sum(exp_V)
+        # LL = Sum(N_i * ln(P_i))
+        # Add tiny epsilon to avoid log(0)
+        LL = np.sum(counts * np.log(P + 1e-10))
+        return -LL
+
+    # Run optimizer (looking for a negative cost parameter)
+    res = minimize(neg_log_likelihood, x0=[-0.01], bounds=[(-1.0, 0.1)])
+    estimated_gamma = res.x[0]
+    
+    st.success(f"**Estimated Cost Parameter (γ): {estimated_gamma:.4f}**")
+    st.markdown("*The model used Maximum Likelihood Estimation to find the parameter that best fits your class's survey data.*")
+
+    # --- STEP 3: FORECASTING ---
+    st.header("3. Policy Forecast")
+    st.markdown("Now that we have our model, what happens if the restaurant increases the price of Meatballs?")
+    
+    new_meatball_price = st.slider("New Price for Meatballs (SEK)", min_value=50, max_value=200, value=109, step=1)
+    new_costs = np.array([new_meatball_price, 79, 129])
+    
+    # Calculate New Probabilities using the ESTIMATED gamma
+    V_new = estimated_gamma * new_costs
+    exp_V_new = np.exp(V_new - np.max(V_new))
+    P_new = exp_V_new / np.sum(exp_V_new)
+    
+    # Random Utility Simulation based on the new prices
+    num_draws = 5000
+    np.random.seed(42)
+    eps = -np.log(-np.log(np.random.rand(num_draws, 3)))
+    U = V_new + eps
+    choices = np.argmax(U, axis=1)
+    P_simulated = np.array([np.mean(choices == 0), np.mean(choices == 1), np.mean(choices == 2)])
+    
+    # Visualization
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    x = np.arange(len(labels))
+    width = 0.35
+
+    ax.bar(x - width/2, P_new * 100, width, label='Analytical MNL Forecast (%)', color='#2ca02c')
+    ax.bar(x + width/2, P_simulated * 100, width, label='Simulated Forecast (%)', color='#ff7f0e')
+
+    ax.set_ylabel('Forecasted Market Share (%)')
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{l}\n({c} SEK)" for l, c in zip(labels, new_costs)])
+    ax.set_ylim(0, 100)
+    ax.legend()
+    st.pyplot(fig)
