@@ -6,48 +6,44 @@ from scipy.optimize import minimize
 
 st.set_page_config(page_title="Lunch Choice App", layout="centered")
 
-# --- CUSTOM CSS FOR COMPACT MOBILE LAYOUT ---
+# --- CUSTOM CSS FOR STRICT ONE-ROW MOBILE FIT ---
 st.markdown("""
     <style>
+    /* 1. Force the row to NEVER wrap and NEVER scroll */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        overflow: hidden !important; 
+        gap: 5px !important;
+    }
+    
+    /* 2. Force columns to share space equally and allow them to shrink endlessly */
+    [data-testid="column"] {
+        min-width: 0 !important; /* This is the magic line that stops horizontal scrolling */
+        flex: 1 1 0px !important; 
+        padding: 0 2px !important;
+    }
+    
+    /* 3. Shrink text and buttons specifically for mobile screens */
     @media (max-width: 600px) {
-        /* Force Streamlit to keep columns in a horizontal row */
-        [data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 4px !important;
-        }
-        /* Force each column to strictly take 1/3 of the screen and allow shrinking */
-        [data-testid="column"] {
-            width: 33.33% !important;
-            min-width: 0 !important; 
-            flex: 1 1 0% !important;
-            padding: 0px !important;
-        }
-        /* Force images to scale down so they don't cause horizontal scrolling */
-        [data-testid="stImage"] img {
-            width: 100% !important;
-            max-width: 100% !important;
-            height: auto !important;
-            object-fit: cover !important;
-        }
-        /* Shrink text and buttons to fit */
         .stButton button {
-            font-size: 11px !important;
-            padding: 4px 0px !important;
+            font-size: 10px !important;
+            padding: 2px 0px !important;
             min-height: 35px !important;
         }
         .dish-title {
-            font-size: 12px !important;
+            font-size: 11px !important;
             text-align: center;
             font-weight: bold;
             margin-bottom: 2px;
+            white-space: nowrap; /* Prevents title from wrapping */
         }
     }
-    /* Default centered title for desktop */
+    
+    /* Default desktop text */
     .dish-title {
         text-align: center;
         font-weight: bold;
-        font-size: 18px;
+        font-size: 16px;
         margin-bottom: 5px;
     }
     </style>
@@ -86,14 +82,17 @@ with tab1:
 
     col1, col2, col3 = st.columns(3)
     
-    # Updated images (Swapped Pho to a 100% reliable Wikimedia link)
+    # 100% reliable Unsplash links forced to identical 4:3 aspect ratios
     img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=400&h=300&q=80"
     img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&h=300&q=80"
-    img_pho = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Pho_Beef_Noodles_2021.jpg/640px-Pho_Beef_Noodles_2021.jpg"
+    img_pho = "https://images.unsplash.com/photo-1582878826629-29b7ad1cb438?auto=format&fit=crop&w=400&h=300&q=80"
+
+    # We use pure HTML for images so they strictly obey the column widths without pushing the screen wide
+    img_style = "width: 100%; border-radius: 5px; margin-bottom: 5px;"
 
     with col1:
         st.markdown('<div class="dish-title">Meatballs</div>', unsafe_allow_html=True)
-        st.image(img_meatballs, use_container_width=True)
+        st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
         if st.button(f"🧆 109 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[0] += 1
             st.session_state.has_voted = True
@@ -101,7 +100,7 @@ with tab1:
             
     with col2:
         st.markdown('<div class="dish-title">Salad</div>', unsafe_allow_html=True)
-        st.image(img_salad, use_container_width=True)
+        st.markdown(f'<img src="{img_salad}" style="{img_style}">', unsafe_allow_html=True)
         if st.button(f"🥗 79 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[1] += 1
             st.session_state.has_voted = True
@@ -109,7 +108,7 @@ with tab1:
             
     with col3:
         st.markdown('<div class="dish-title">Beef Pho</div>', unsafe_allow_html=True)
-        st.image(img_pho, use_container_width=True)
+        st.markdown(f'<img src="{img_pho}" style="{img_style}">', unsafe_allow_html=True)
         if st.button(f"🍜 129 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[2] += 1
             st.session_state.has_voted = True
@@ -118,7 +117,6 @@ with tab1:
     st.divider()
     st.info(f"**Total Class Votes Cast:** {total_students}")
 
-    # Live Bar Chart
     if total_students > 0:
         fig1, ax1 = plt.subplots(figsize=(6, 3.5))
         bars = ax1.bar(labels, shared_votes, color=['#8c564b', '#2ca02c', '#d62728'])
