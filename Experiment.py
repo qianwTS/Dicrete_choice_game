@@ -5,23 +5,44 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
 st.set_page_config(page_title="Lunch Choice App", layout="centered")
+
+# --- CUSTOM CSS FOR MOBILE LAYOUT ---
+# This forces Streamlit columns to stay side-by-side on mobile screens instead of stacking
+st.markdown("""
+    <style>
+    @media (max-width: 600px) {
+        [data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap !important;
+        }
+        [data-testid="column"] {
+            min-width: 30% !important;
+            padding: 0 4px !important;
+        }
+        /* Make button text smaller on mobile to fit */
+        .stButton button {
+            font-size: 12px !important;
+            padding: 4px !important;
+        }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("🍔 Discrete Choice Experiment")
 
-# --- 1. GLOBAL SHARED MEMORY (Pools all student phones) ---
+# --- 1. GLOBAL SHARED MEMORY ---
 @st.cache_resource
 def get_shared_votes():
     return [0, 0, 0] # [Meatballs, Salad, Pho]
 
 shared_votes = get_shared_votes()
 
-# --- 2. LOCAL BROWSER MEMORY (Locks individual student phones) ---
+# --- 2. LOCAL BROWSER MEMORY ---
 if 'has_voted' not in st.session_state:
     st.session_state.has_voted = False
 
 base_costs = np.array([109, 79, 129])
 labels = ['Meatballs', 'Salad', 'Pho']
 
-# Tabs
 tab1, tab2, tab3 = st.tabs(["1. Data Collection", "2. Model Estimation", "3. Policy Forecast"])
 
 total_students = np.sum(shared_votes)
@@ -33,45 +54,40 @@ with tab1:
     st.header("Step 1: Cast Your Vote")
     
     if st.session_state.has_voted:
-        st.success("✅ Your vote has been recorded! Waiting for the rest of the class...")
+        st.success("✅ Your vote has been recorded! Waiting for the class...")
     else:
-        st.markdown("What would you choose for lunch today at these prices? *(You can only vote once!)*")
+        st.markdown("What would you choose for lunch today? *(You can only vote once!)*")
 
     col1, col2, col3 = st.columns(3)
     
-    # Images and Buttons
+    # We append &fit=crop&w=400&h=300 to the URLs to force exactly equal dimensions
+    img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=400&h=300&q=80"
+    img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&h=300&q=80"
+    img_pho = "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=400&h=300&q=80"
+
     with col1:
-        st.image("https://images.unsplash.com/photo-1529042410759-befb1204b468?w=500", caption="Swedish Meatballs")
-        if st.button(f"🧆 Choose ({base_costs[0]} SEK)", disabled=st.session_state.has_voted, use_container_width=True):
+        st.image(img_meatballs, use_column_width=True)
+        if st.button(f"🧆 109 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[0] += 1
             st.session_state.has_voted = True
             st.rerun()
             
     with col2:
-        st.image("https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500", caption="Fresh Salad")
-        if st.button(f"🥗 Choose ({base_costs[1]} SEK)", disabled=st.session_state.has_voted, use_container_width=True):
+        st.image(img_salad, use_column_width=True)
+        if st.button(f"🥗 79 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[1] += 1
             st.session_state.has_voted = True
             st.rerun()
             
     with col3:
-        st.image("https://images.unsplash.com/photo-1582878826629-29b7ad1cb438?w=500", caption="Beef Pho")
-        if st.button(f"🍜 Choose ({base_costs[2]} SEK)", disabled=st.session_state.has_voted, use_container_width=True):
+        st.image(img_pho, use_column_width=True)
+        if st.button(f"🍜 129 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[2] += 1
             st.session_state.has_voted = True
             st.rerun()
 
     st.divider()
-    
-    colA, colB = st.columns([3, 1])
-    with colA:
-        st.info(f"**Total Class Votes Cast:** {total_students}")
-    with colB:
-        # Instructor Reset Button
-        if st.button("🗑️ Instructor Reset"):
-            shared_votes[0] = shared_votes[1] = shared_votes[2] = 0
-            st.session_state.has_voted = False
-            st.rerun()
+    st.info(f"**Total Class Votes Cast:** {total_students}")
 
     # Live Bar Chart
     if total_students > 0:
@@ -142,12 +158,10 @@ with tab3:
 
         new_costs = np.array([new_m, new_s, new_p])
 
-        # Analytical Forecast using est_gamma from Page 2
         V_new = est_gamma * new_costs
         exp_V_new = np.exp(V_new - np.max(V_new))
         P_new = exp_V_new / np.sum(exp_V_new)
 
-        # Simulated Forecast
         num_draws = 5000
         np.random.seed(42)
         eps = -np.log(-np.log(np.random.rand(num_draws, 3)))
@@ -160,7 +174,7 @@ with tab3:
         width = 0.35
 
         ax3.bar(x - width/2, P_new * 100, width, label='Analytical Forecast (%)', color='#2ca02c')
-        ax3.bar(x + width/2, P_sim * 100, width, label=f'Simulated Forecast ({num_draws} draws)', color='#9467bd')
+        ax3.bar(x + width/2, P_sim * 100, width, label=f'Simulated Forecast', color='#9467bd')
 
         ax3.set_ylabel('Forecasted Market Share (%)')
         ax3.set_xticks(x)
@@ -168,3 +182,14 @@ with tab3:
         ax3.set_ylim(0, 100)
         ax3.legend()
         st.pyplot(fig3)
+
+# ==========================================
+# HIDDEN INSTRUCTOR TOOLS
+# ==========================================
+with st.expander("⚙️ Instructor Tools"):
+    admin_password = st.text_input("Enter password to reset data", type="password")
+    if admin_password == "admin123": # Change this to whatever you want
+        if st.button("🗑️ Reset All Class Votes"):
+            shared_votes[0] = shared_votes[1] = shared_votes[2] = 0
+            st.session_state.has_voted = False
+            st.rerun()
