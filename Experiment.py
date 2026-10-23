@@ -182,9 +182,20 @@ with tab3:
 # HIDDEN INSTRUCTOR TOOLS
 # ==========================================
 with st.expander("⚙️ Instructor Tools"):
-    admin_password = st.text_input("Enter password to reset data", type="password")
+    admin_password = st.text_input("Enter password", type="password")
     if admin_password == "admin123": 
+        
+        # New button to inject 25 fake votes for testing!
+        if st.button("🧪 Inject 25 Test Votes"):
+            shared_votes[0] = 12  # 12 for Meatballs
+            shared_votes[1] = 8   # 8 for Salad
+            shared_votes[2] = 5   # 5 for Beef Stew
+            st.session_state.has_voted = True
+            st.rerun()
+
         if st.button("🗑️ Reset All Class Votes"):
             shared_votes[0] = shared_votes[1] = shared_votes[2] = 0
+            st.session_state.has_voted = False
+            st.rerun()
             st.session_state.has_voted = False
             st.rerun()
