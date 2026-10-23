@@ -7,7 +7,6 @@ from scipy.optimize import minimize
 st.set_page_config(page_title="Lunch Choice App", layout="centered")
 
 # --- COMPACT VERTICAL CSS ---
-# This reduces empty space so the 3 rows and the chart all fit on one mobile screen
 st.markdown("""
     <style>
     /* Reduce top padding of the whole app */
@@ -32,7 +31,7 @@ st.title("🍔 Discrete Choice Experiment")
 # --- 1. GLOBAL SHARED MEMORY ---
 @st.cache_resource
 def get_shared_votes():
-    return [0, 0, 0] # [Meatballs, Salad, Pho]
+    return [0, 0, 0] # [Meatballs, Salad, Beef Stew]
 
 shared_votes = get_shared_votes()
 
@@ -41,7 +40,7 @@ if 'has_voted' not in st.session_state:
     st.session_state.has_voted = False
 
 base_costs = np.array([109, 79, 129])
-labels = ['Meatballs', 'Salad', 'Pho']
+labels = ['Meatballs', 'Salad', 'Beef Stew']
 
 tab1, tab2, tab3 = st.tabs(["1. Data Collection", "2. Model Estimation", "3. Policy Forecast"])
 
@@ -56,12 +55,11 @@ with tab1:
     else:
         st.markdown("#### What would you choose for lunch today?")
 
-    # We use server-cropped panoramic banner images to save vertical space
+    # Server-cropped panoramic banner images
     img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
     img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
-    img_pho = "https://images.unsplash.com/photo-1582878826629-29b7ad1cb438?auto=format&fit=crop&w=800&h=250&q=80"
+    img_stew = "https://images.unsplash.com/photo-1548943487-a2e4d43b485f?auto=format&fit=crop&w=800&h=250&q=80"
 
-    # HTML styles to force images to act as short, wide banners
     img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
     # --- ROW 1: MEATBALLS ---
@@ -78,15 +76,14 @@ with tab1:
         st.session_state.has_voted = True
         st.rerun()
 
-    # --- ROW 3: PHO ---
-    st.markdown(f'<img src="{img_pho}" style="{img_style}">', unsafe_allow_html=True)
-    if st.button("🍜 Beef Pho (129 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_p"):
+    # --- ROW 3: BEEF STEW ---
+    st.markdown(f'<img src="{img_stew}" style="{img_style}">', unsafe_allow_html=True)
+    if st.button("🥘 Beef Stew (129 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_stew"):
         shared_votes[2] += 1
         st.session_state.has_voted = True
         st.rerun()
 
     # --- LIVE DATA CHART ---
-    # We use a short chart (figsize=(6, 2.5)) so it fits at the bottom of the mobile screen
     if total_students > 0:
         fig1, ax1 = plt.subplots(figsize=(6, 2.5))
         bars = ax1.bar(labels, shared_votes, color=['#8c564b', '#2ca02c', '#d62728'])
@@ -151,9 +148,9 @@ with tab3:
     else:
         new_m = st.slider("New Price for Meatballs (SEK)", 50, 200, 109, 1)
         new_s = st.slider("New Price for Salad (SEK)", 50, 200, 79, 1)
-        new_p = st.slider("New Price for Pho (SEK)", 50, 200, 129, 1)
+        new_stew = st.slider("New Price for Beef Stew (SEK)", 50, 200, 129, 1)
 
-        new_costs = np.array([new_m, new_s, new_p])
+        new_costs = np.array([new_m, new_s, new_stew])
 
         V_new = est_gamma * new_costs
         exp_V_new = np.exp(V_new - np.max(V_new))
