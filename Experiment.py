@@ -6,28 +6,35 @@ from scipy.optimize import minimize
 
 st.set_page_config(page_title="Lunch Choice App", layout="centered")
 
-# --- STRICT NO-SCROLL CSS FOR MOBILE ---
+# --- BULLETPROOF CSS FOR MOBILE ---
 st.markdown("""
     <style>
     @media (max-width: 600px) {
-        /* 1. Force the row container to never wrap and never scroll */
+        /* 1. Force container to stay as a horizontal row */
         div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            overflow: hidden !important;
-            gap: 4px !important;
             width: 100% !important;
         }
         
-        /* 2. Kill Streamlit's hidden 250px minimum width and force 33% */
+        /* 2. The Magic Fix: Force EXACTLY 1/3 width and forbid expanding */
         div[data-testid="column"] {
+            flex: 1 1 0px !important;
             width: 33.33% !important;
-            min-width: 0px !important; /* This is the fix that stops the scrolling */
-            flex: 1 1 33.33% !important;
+            max-width: 33.33% !important; /* This stops the first image from pushing the others off screen! */
+            min-width: 0px !important;
             padding: 0 2px !important;
         }
         
-        /* 3. Shrink buttons and text to fit inside the scaled-down columns */
+        /* 3. Ensure images scale down perfectly inside their columns */
+        img {
+            max-width: 100% !important;
+            height: auto !important;
+            object-fit: cover !important;
+        }
+        
+        /* 4. Shrink buttons and text */
         .stButton button {
             font-size: 10px !important;
             padding: 2px 0px !important;
@@ -39,7 +46,7 @@ st.markdown("""
             text-align: center;
             font-weight: bold;
             margin-bottom: 2px;
-            white-space: nowrap;
+            white-space: normal !important;
         }
     }
     
@@ -90,8 +97,7 @@ with tab1:
     img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&h=300&q=80"
     img_pho = "https://images.unsplash.com/photo-1582878826629-29b7ad1cb438?auto=format&fit=crop&w=400&h=300&q=80"
 
-    # Pure HTML images guarantee they obey our width rules without Streamlit interference
-    img_style = "width: 100%; height: auto; border-radius: 5px; margin-bottom: 5px;"
+    img_style = "width: 100%; border-radius: 5px; margin-bottom: 5px;"
 
     with col1:
         st.markdown('<div class="dish-title">Meatballs</div>', unsafe_allow_html=True)
