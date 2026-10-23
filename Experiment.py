@@ -6,41 +6,28 @@ from scipy.optimize import minimize
 
 st.set_page_config(page_title="Lunch Choice App", layout="centered")
 
-# --- BULLETPROOF CSS FOR MOBILE ---
+# --- CSS FOR HORIZONTAL SCROLL (SWIPE) ON MOBILE ---
 st.markdown("""
     <style>
     @media (max-width: 600px) {
-        /* 1. Force columns to stay in a row and never wrap */
+        /* 1. Force the container to be a horizontally scrollable ribbon */
         div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
             flex-wrap: nowrap !important;
-            width: 100% !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding-bottom: 15px !important; /* Room for the scrollbar */
+            -webkit-overflow-scrolling: touch; /* Smooth swiping on iOS */
         }
         
-        /* 2. Force exactly 1/3 width for each column */
+        /* 2. Give each column enough width so they don't squish (e.g., 65% of the screen) */
         div[data-testid="column"] {
-            width: 33.33% !important;
-            flex: 1 1 33.33% !important;
-            min-width: 0 !important;
-            padding: 0 3px !important;
-        }
-        
-        /* 3. Scale down text and buttons to fit inside the 1/3 columns */
-        .stButton button {
-            font-size: 11px !important;
-            padding: 2px 0px !important;
-            min-height: 35px !important;
-            width: 100% !important;
-        }
-        .dish-title {
-            font-size: 12px !important;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 2px;
+            min-width: 65% !important; 
+            flex: 0 0 auto !important;
+            padding: 0 5px !important;
         }
     }
     
-    /* Default desktop title */
+    /* Center and style the dish titles */
     .dish-title {
         text-align: center;
         font-weight: bold;
@@ -80,6 +67,8 @@ with tab1:
         st.success("✅ Your vote has been recorded! Waiting for the class...")
     else:
         st.markdown("What would you choose for lunch today? *(You can only vote once!)*")
+        # Quick hint for mobile users
+        st.caption("📱 *On mobile? Swipe left and right to see all options!*")
 
     col1, col2, col3 = st.columns(3)
     
@@ -87,7 +76,7 @@ with tab1:
     img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&h=300&q=80"
     img_pho = "https://images.unsplash.com/photo-1582878826629-29b7ad1cb438?auto=format&fit=crop&w=400&h=300&q=80"
 
-    img_style = "width: 100%; border-radius: 5px; margin-bottom: 5px;"
+    img_style = "width: 100%; border-radius: 8px; margin-bottom: 10px;"
 
     with col1:
         st.markdown('<div class="dish-title">Meatballs</div>', unsafe_allow_html=True)
@@ -184,6 +173,7 @@ with tab3:
 
         new_costs = np.array([new_m, new_s, new_p])
 
+        # Use the estimated gamma from Page 2
         V_new = est_gamma * new_costs
         exp_V_new = np.exp(V_new - np.max(V_new))
         P_new = exp_V_new / np.sum(exp_V_new)
