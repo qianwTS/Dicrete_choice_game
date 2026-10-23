@@ -10,24 +10,31 @@ st.set_page_config(page_title="Lunch Choice App", layout="centered")
 st.markdown("""
     <style>
     @media (max-width: 600px) {
-        /* Force Streamlit to keep columns in a horizontal row on mobile */
+        /* Force Streamlit to keep columns in a horizontal row */
         [data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 5px !important;
+            gap: 4px !important;
         }
-        /* Make each column take exactly one-third of the screen */
+        /* Force each column to strictly take 1/3 of the screen and allow shrinking */
         [data-testid="column"] {
-            width: 33% !important;
-            min-width: 33% !important;
-            flex: 1 1 33% !important;
+            width: 33.33% !important;
+            min-width: 0 !important; 
+            flex: 1 1 0% !important;
             padding: 0px !important;
+        }
+        /* Force images to scale down so they don't cause horizontal scrolling */
+        [data-testid="stImage"] img {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            object-fit: cover !important;
         }
         /* Shrink text and buttons to fit */
         .stButton button {
             font-size: 11px !important;
             padding: 4px 0px !important;
-            min-height: 40px !important;
+            min-height: 35px !important;
         }
         .dish-title {
             font-size: 12px !important;
@@ -79,10 +86,10 @@ with tab1:
 
     col1, col2, col3 = st.columns(3)
     
-    # Updated image for Beef Pho (Clear, reliable URL)
+    # Updated images (Swapped Pho to a 100% reliable Wikimedia link)
     img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=400&h=300&q=80"
     img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&h=300&q=80"
-    img_pho = "https://images.unsplash.com/photo-1631709497146-2592070399f6?auto=format&fit=crop&w=400&h=300&q=80"
+    img_pho = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Pho_Beef_Noodles_2021.jpg/640px-Pho_Beef_Noodles_2021.jpg"
 
     with col1:
         st.markdown('<div class="dish-title">Meatballs</div>', unsafe_allow_html=True)
