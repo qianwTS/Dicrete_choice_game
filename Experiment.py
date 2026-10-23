@@ -55,10 +55,11 @@ with tab1:
     else:
         st.markdown("#### What would you choose for lunch today?")
 
-    # Server-cropped panoramic banner images
+    # Highly reliable image links
     img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
     img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
-    img_stew = "https://images.unsplash.com/photo-1548943487-a2e4d43b485f?auto=format&fit=crop&w=800&h=250&q=80"
+    # Swapped to a permanent Wikimedia image to prevent it from breaking
+    img_stew = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Beef_Stew.jpg/800px-Beef_Stew.jpg"
 
     img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
