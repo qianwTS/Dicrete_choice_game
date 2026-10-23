@@ -6,56 +6,23 @@ from scipy.optimize import minimize
 
 st.set_page_config(page_title="Lunch Choice App", layout="centered")
 
-# --- BULLETPROOF CSS FOR MOBILE ---
+# --- COMPACT VERTICAL CSS ---
+# This reduces empty space so the 3 rows and the chart all fit on one mobile screen
 st.markdown("""
     <style>
-    @media (max-width: 600px) {
-        /* 1. Force container to stay as a horizontal row */
-        div[data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            width: 100% !important;
-        }
-        
-        /* 2. The Magic Fix: Force EXACTLY 1/3 width and forbid expanding */
-        div[data-testid="column"] {
-            flex: 1 1 0px !important;
-            width: 33.33% !important;
-            max-width: 33.33% !important; /* This stops the first image from pushing the others off screen! */
-            min-width: 0px !important;
-            padding: 0 2px !important;
-        }
-        
-        /* 3. Ensure images scale down perfectly inside their columns */
-        img {
-            max-width: 100% !important;
-            height: auto !important;
-            object-fit: cover !important;
-        }
-        
-        /* 4. Shrink buttons and text */
-        .stButton button {
-            font-size: 10px !important;
-            padding: 2px 0px !important;
-            min-height: 35px !important;
-            width: 100% !important;
-        }
-        .dish-title {
-            font-size: 11px !important;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 2px;
-            white-space: normal !important;
-        }
+    /* Reduce top padding of the whole app */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1rem !important;
     }
-    
-    /* Default desktop title */
-    .dish-title {
-        text-align: center;
-        font-weight: bold;
-        font-size: 16px;
-        margin-bottom: 5px;
+    /* Hide the default Streamlit header to save space */
+    header {visibility: hidden;}
+    /* Make buttons bold and slightly taller for easy tapping */
+    .stButton button {
+        min-height: 45px !important;
+        font-size: 15px !important;
+        font-weight: bold !important;
+        margin-bottom: 10px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -81,56 +48,50 @@ tab1, tab2, tab3 = st.tabs(["1. Data Collection", "2. Model Estimation", "3. Pol
 total_students = np.sum(shared_votes)
 
 # ==========================================
-# PAGE 1: MAKING CHOICES
+# PAGE 1: MAKING CHOICES (Vertical List Layout)
 # ==========================================
 with tab1:
-    st.header("Step 1: Cast Your Vote")
-    
     if st.session_state.has_voted:
-        st.success("✅ Your vote has been recorded! Waiting for the class...")
+        st.success("✅ Vote recorded! Watch the live data update below.")
     else:
-        st.markdown("What would you choose for lunch today? *(You can only vote once!)*")
+        st.markdown("#### What would you choose for lunch today?")
 
-    col1, col2, col3 = st.columns(3)
-    
-    img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=400&h=300&q=80"
-    img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&h=300&q=80"
-    img_pho = "https://images.unsplash.com/photo-1582878826629-29b7ad1cb438?auto=format&fit=crop&w=400&h=300&q=80"
+    # We use server-cropped panoramic banner images to save vertical space
+    img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
+    img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
+    img_pho = "https://images.unsplash.com/photo-1582878826629-29b7ad1cb438?auto=format&fit=crop&w=800&h=250&q=80"
 
-    img_style = "width: 100%; border-radius: 5px; margin-bottom: 5px;"
+    # HTML styles to force images to act as short, wide banners
+    img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
-    with col1:
-        st.markdown('<div class="dish-title">Meatballs</div>', unsafe_allow_html=True)
-        st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
-        if st.button(f"🧆 109 SEK", disabled=st.session_state.has_voted, use_container_width=True, key="btn_m"):
-            shared_votes[0] += 1
-            st.session_state.has_voted = True
-            st.rerun()
-            
-    with col2:
-        st.markdown('<div class="dish-title">Salad</div>', unsafe_allow_html=True)
-        st.markdown(f'<img src="{img_salad}" style="{img_style}">', unsafe_allow_html=True)
-        if st.button(f"🥗 79 SEK", disabled=st.session_state.has_voted, use_container_width=True, key="btn_s"):
-            shared_votes[1] += 1
-            st.session_state.has_voted = True
-            st.rerun()
-            
-    with col3:
-        st.markdown('<div class="dish-title">Beef Pho</div>', unsafe_allow_html=True)
-        st.markdown(f'<img src="{img_pho}" style="{img_style}">', unsafe_allow_html=True)
-        if st.button(f"🍜 129 SEK", disabled=st.session_state.has_voted, use_container_width=True, key="btn_p"):
-            shared_votes[2] += 1
-            st.session_state.has_voted = True
-            st.rerun()
+    # --- ROW 1: MEATBALLS ---
+    st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
+    if st.button("🧆 Meatballs (109 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_m"):
+        shared_votes[0] += 1
+        st.session_state.has_voted = True
+        st.rerun()
 
-    st.divider()
-    st.info(f"**Total Class Votes Cast:** {total_students}")
+    # --- ROW 2: SALAD ---
+    st.markdown(f'<img src="{img_salad}" style="{img_style}">', unsafe_allow_html=True)
+    if st.button("🥗 Fresh Salad (79 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_s"):
+        shared_votes[1] += 1
+        st.session_state.has_voted = True
+        st.rerun()
 
+    # --- ROW 3: PHO ---
+    st.markdown(f'<img src="{img_pho}" style="{img_style}">', unsafe_allow_html=True)
+    if st.button("🍜 Beef Pho (129 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_p"):
+        shared_votes[2] += 1
+        st.session_state.has_voted = True
+        st.rerun()
+
+    # --- LIVE DATA CHART ---
+    # We use a short chart (figsize=(6, 2.5)) so it fits at the bottom of the mobile screen
     if total_students > 0:
-        fig1, ax1 = plt.subplots(figsize=(6, 3.5))
+        fig1, ax1 = plt.subplots(figsize=(6, 2.5))
         bars = ax1.bar(labels, shared_votes, color=['#8c564b', '#2ca02c', '#d62728'])
-        ax1.set_ylabel('Number of Votes')
-        ax1.set_title('Live Class Vote Frequency')
+        ax1.set_ylabel('Votes')
+        ax1.set_title(f'Live Class Votes (Total: {total_students})')
         for bar in bars:
             yval = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2, yval + 0.1, int(yval), ha='center', va='bottom')
@@ -205,7 +166,7 @@ with tab3:
         choices = np.argmax(U, axis=1)
         P_sim = np.array([np.mean(choices == 0), np.mean(choices == 1), np.mean(choices == 2)])
 
-        fig3, ax3 = plt.subplots(figsize=(7, 4.5))
+        fig3, ax3 = plt.subplots(figsize=(7, 4))
         x = np.arange(len(labels))
         width = 0.35
 
