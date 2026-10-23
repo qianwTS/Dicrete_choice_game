@@ -6,23 +6,43 @@ from scipy.optimize import minimize
 
 st.set_page_config(page_title="Lunch Choice App", layout="centered")
 
-# --- CUSTOM CSS FOR MOBILE LAYOUT ---
-# This forces Streamlit columns to stay side-by-side on mobile screens instead of stacking
+# --- CUSTOM CSS FOR COMPACT MOBILE LAYOUT ---
 st.markdown("""
     <style>
     @media (max-width: 600px) {
+        /* Force the row to stay on one line and prevent expanding beyond screen */
         [data-testid="stHorizontalBlock"] {
             flex-wrap: nowrap !important;
+            gap: 2px !important;
+            overflow: hidden !important;
         }
+        /* Force each column to take exactly 1/3 of the space with no minimum width */
         [data-testid="column"] {
-            min-width: 30% !important;
-            padding: 0 4px !important;
+            flex: 1 1 0% !important;
+            width: 33% !important;
+            min-width: 0 !important;
+            padding: 0 2px !important;
         }
-        /* Make button text smaller on mobile to fit */
+        /* Shrink text and buttons to fit small screens perfectly */
         .stButton button {
-            font-size: 12px !important;
-            padding: 4px !important;
+            font-size: 11px !important;
+            padding: 2px 0px !important;
+            min-height: 35px !important;
         }
+        /* Center and shrink dish names */
+        .dish-title {
+            font-size: 13px !important;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+    }
+    /* Default centered title for desktop */
+    .dish-title {
+        text-align: center;
+        font-weight: bold;
+        font-size: 18px;
+        margin-bottom: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -60,12 +80,13 @@ with tab1:
 
     col1, col2, col3 = st.columns(3)
     
-    # We append &fit=crop&w=400&h=300 to the URLs to force exactly equal dimensions
+    # Updated images (New Pho picture)
     img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=400&h=300&q=80"
     img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=400&h=300&q=80"
-    img_pho = "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=400&h=300&q=80"
+    img_pho = "https://images.unsplash.com/photo-1547597371-d0590ed84775?auto=format&fit=crop&w=400&h=300&q=80"
 
     with col1:
+        st.markdown('<div class="dish-title">Meatballs</div>', unsafe_allow_html=True)
         st.image(img_meatballs, use_column_width=True)
         if st.button(f"🧆 109 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[0] += 1
@@ -73,6 +94,7 @@ with tab1:
             st.rerun()
             
     with col2:
+        st.markdown('<div class="dish-title">Salad</div>', unsafe_allow_html=True)
         st.image(img_salad, use_column_width=True)
         if st.button(f"🥗 79 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[1] += 1
@@ -80,6 +102,7 @@ with tab1:
             st.rerun()
             
     with col3:
+        st.markdown('<div class="dish-title">Beef Pho</div>', unsafe_allow_html=True)
         st.image(img_pho, use_column_width=True)
         if st.button(f"🍜 129 SEK", disabled=st.session_state.has_voted, use_container_width=True):
             shared_votes[2] += 1
@@ -188,7 +211,7 @@ with tab3:
 # ==========================================
 with st.expander("⚙️ Instructor Tools"):
     admin_password = st.text_input("Enter password to reset data", type="password")
-    if admin_password == "admin123": # Change this to whatever you want
+    if admin_password == "admin123": 
         if st.button("🗑️ Reset All Class Votes"):
             shared_votes[0] = shared_votes[1] = shared_votes[2] = 0
             st.session_state.has_voted = False
