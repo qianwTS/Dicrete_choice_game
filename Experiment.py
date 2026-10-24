@@ -18,74 +18,88 @@ st.markdown("""
 st.title("🍔 Discrete Choice Experiment")
 
 # --- 1. GLOBAL MICRODATA MEMORY ---
-# Instead of aggregate votes, we now store individual student rows!
 @st.cache_resource
 def get_shared_data():
-    return [] # List of dicts: [{'choice': 0, 'veg': 1, 'swe': 0}, ...]
+    return [] # Will store: {'choice': 0, 'veg': 1, 'swe': 0, 'p_m': 109, 'p_s': 79, 'p_b': 129}
 
 shared_data = get_shared_data()
 
-# --- 2. LOCAL BROWSER MEMORY ---
+# --- 2. LOCAL BROWSER MEMORY (SP EXPERIMENT SETUP) ---
 if 'has_voted' not in st.session_state:
     st.session_state.has_voted = False
+    st.session_state.task_idx = 0 # Tracks which of the 3 questions they are on
+    
+    # Generate 3 randomized price scenarios for this specific student
+    st.session_state.scenarios = [
+        {'m': int(np.random.choice([89, 109, 129])),
+         's': int(np.random.choice([59, 79, 99])),
+         'b': int(np.random.choice([109, 129, 149]))}
+        for _ in range(3)
+    ]
 
-base_costs = np.array([109, 79, 129])
 labels = ['Meatballs', 'Salad', 'Beef Stew']
+total_observations = len(shared_data)
+counts = [sum(1 for d in shared_data if d['choice'] == i) for i in range(3)] if total_observations > 0 else [0,0,0]
 
-tab1, tab2, tab3, tab4 = st.tabs(["1. Survey", "2. Basic Model", "3. Advanced Model", "4. Policy Forecast"])
-
-total_students = len(shared_data)
-
-# Calculate aggregate counts for charts
-counts = [sum(1 for d in shared_data if d['choice'] == i) for i in range(3)] if total_students > 0 else [0,0,0]
+tab1, tab2, tab3, tab4 = st.tabs(["1. Survey", "2. Basic MNL", "3. Advanced MNL", "4. Policy"])
 
 # ==========================================
-# PAGE 1: MAKING CHOICES
+# PAGE 1: REPEATED SP EXPERIMENT
 # ==========================================
 with tab1:
     if st.session_state.has_voted:
-        st.success("✅ Vote recorded! Watch the live data update below.")
+        st.success("✅ All 3 scenarios completed! Watch the live data update below.")
     else:
-        st.markdown("#### 1. About You")
+        st.markdown(f"#### Step 1: About You")
         col_v, col_s = st.columns(2)
         with col_v:
-            is_veg = st.checkbox("🌱 I am Vegetarian")
+            # Lock the demographics once they start clicking so they don't change it mid-survey
+            ans_veg = st.radio("🌱 Vegetarian?", ["No", "Yes"], disabled=st.session_state.task_idx > 0)
+            is_veg = 1 if ans_veg == "Yes" else 0
         with col_s:
-            is_swe = st.checkbox("🇸🇪 I am Swedish")
+            ans_swe = st.radio("🇸🇪 Swedish?", ["No", "Yes"], disabled=st.session_state.task_idx > 0)
+            is_swe = 1 if ans_swe == "Yes" else 0
             
-        st.markdown("#### 2. Choose your lunch")
+        st.markdown(f"#### Step 2: Scenario {st.session_state.task_idx + 1} of 3")
+        st.caption("Prices have changed! What is your choice now?")
 
-    img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
-    img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
-    img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
-    img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
+        # Fetch prices for the current task
+        p_m = st.session_state.scenarios[st.session_state.task_idx]['m']
+        p_s = st.session_state.scenarios[st.session_state.task_idx]['s']
+        p_b = st.session_state.scenarios[st.session_state.task_idx]['b']
 
-    # --- ROW 1: MEATBALLS ---
-    st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
-    if st.button("🧆 Meatballs (109 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_m"):
-        shared_data.append({'choice': 0, 'veg': int(is_veg), 'swe': int(is_swe)})
-        st.session_state.has_voted = True
-        st.rerun()
+        img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
+        img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
+        img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
+        img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
-    # --- ROW 2: SALAD ---
-    st.markdown(f'<img src="{img_salad}" style="{img_style}">', unsafe_allow_html=True)
-    if st.button("🥗 Fresh Salad (79 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_s"):
-        shared_data.append({'choice': 1, 'veg': int(is_veg), 'swe': int(is_swe)})
-        st.session_state.has_voted = True
-        st.rerun()
+        st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
+        if st.button(f"🧆 Meatballs ({p_m} SEK)", use_container_width=True, key="btn_m"):
+            shared_data.append({'choice': 0, 'veg': is_veg, 'swe': is_swe, 'p_m': p_m, 'p_s': p_s, 'p_b': p_b})
+            st.session_state.task_idx += 1
+            if st.session_state.task_idx >= 3: st.session_state.has_voted = True
+            st.rerun()
 
-    # --- ROW 3: BEEF STEW ---
-    st.markdown(f'<img src="{img_stew}" style="{img_style}">', unsafe_allow_html=True)
-    if st.button("🥘 Beef Stew (129 SEK)", disabled=st.session_state.has_voted, use_container_width=True, key="btn_stew"):
-        shared_data.append({'choice': 2, 'veg': int(is_veg), 'swe': int(is_swe)})
-        st.session_state.has_voted = True
-        st.rerun()
+        st.markdown(f'<img src="{img_salad}" style="{img_style}">', unsafe_allow_html=True)
+        if st.button(f"🥗 Fresh Salad ({p_s} SEK)", use_container_width=True, key="btn_s"):
+            shared_data.append({'choice': 1, 'veg': is_veg, 'swe': is_swe, 'p_m': p_m, 'p_s': p_s, 'p_b': p_b})
+            st.session_state.task_idx += 1
+            if st.session_state.task_idx >= 3: st.session_state.has_voted = True
+            st.rerun()
 
-    if total_students > 0:
+        st.markdown(f'<img src="{img_stew}" style="{img_style}">', unsafe_allow_html=True)
+        if st.button(f"🥘 Beef Stew ({p_b} SEK)", use_container_width=True, key="btn_stew"):
+            shared_data.append({'choice': 2, 'veg': is_veg, 'swe': is_swe, 'p_m': p_m, 'p_s': p_s, 'p_b': p_b})
+            st.session_state.task_idx += 1
+            if st.session_state.task_idx >= 3: st.session_state.has_voted = True
+            st.rerun()
+
+    st.divider()
+    if total_observations > 0:
         fig1, ax1 = plt.subplots(figsize=(6, 2.5))
         bars = ax1.bar(labels, counts, color=['#8c564b', '#2ca02c', '#d62728'])
-        ax1.set_ylabel('Votes')
-        ax1.set_title(f'Live Class Votes (Total: {total_students})')
+        ax1.set_ylabel('Choices Made')
+        ax1.set_title(f'Live SP Data (Total Choices: {total_observations})')
         for bar in bars:
             yval = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2, yval + 0.1, int(yval), ha='center', va='bottom')
@@ -94,58 +108,70 @@ with tab1:
         st.pyplot(fig1)
 
 # ==========================================
-# GLOBAL ESTIMATION (Runs silently for Tabs 2, 3, and 4)
+# SIMULTANEOUS ESTIMATION (Runs for Tabs 2, 3, 4)
 # ==========================================
-est_gamma = 0.0
-asc_m, asc_s, b_veg, b_swe = 0.0, 0.0, 0.0, 0.0
-
-if total_students > 0:
-    # 1. Model 1 (Cost Only)
-    def nll_m1(gamma):
-        V = gamma[0] * base_costs
-        exp_V = np.exp(V - np.max(V))
-        P = exp_V / np.sum(exp_V)
-        return -np.sum(np.array(counts) * np.log(P + 1e-10))
-    
-    res1 = minimize(nll_m1, x0=[-0.01], bounds=[(-1.0, 0.1)])
-    est_gamma = res1.x[0]
-
-    # 2. Model 2 (ASCs & Dummies, holding gamma fixed)
-    def nll_m2(params):
-        a_m, a_s, b_v, b_sw = params
+if total_observations > 0:
+    # MODEL 1: Cost + ASCs simultaneously identified!
+    def nll_basic(params):
+        gamma, a_m, a_s = params
         LL = 0
-        for row in shared_data:
-            v_m = est_gamma * 109 + a_m + b_sw * row['swe']
-            v_s = est_gamma * 79 + a_s + b_v * row['veg']
-            v_b = est_gamma * 129 # Beef Stew is Reference (ASC=0)
-            
+        for r in shared_data:
+            v_m = gamma * r['p_m'] + a_m
+            v_s = gamma * r['p_s'] + a_s
+            v_b = gamma * r['p_b']
             exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
             p = exp_v / np.sum(exp_v)
-            LL += np.log(p[row['choice']] + 1e-10)
+            LL += np.log(p[r['choice']] + 1e-10)
         return -LL
     
-    res2 = minimize(nll_m2, x0=[0, 0, 0, 0], method='L-BFGS-B')
-    asc_m, asc_s, b_veg, b_swe = res2.x
+    res1 = minimize(nll_basic, x0=[-0.01, 0, 0], bounds=[(-1.0, 0.1), (None, None), (None, None)])
+    g1, asc_m1, asc_s1 = res1.x
+
+    # MODEL 2: Cost + ASCs + Dummies
+    def nll_adv(params):
+        gamma, a_m, a_s, b_v, b_sw = params
+        LL = 0
+        for r in shared_data:
+            v_m = gamma * r['p_m'] + a_m + b_sw * r['swe']
+            v_s = gamma * r['p_s'] + a_s + b_v * r['veg']
+            v_b = gamma * r['p_b']
+            exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
+            p = exp_v / np.sum(exp_v)
+            LL += np.log(p[r['choice']] + 1e-10)
+        return -LL
+    
+    res2 = minimize(nll_adv, x0=[-0.01, 0, 0, 0, 0], bounds=[(-1.0, 0.1), (None, None), (None, None), (None, None), (None, None)])
+    g2, asc_m2, asc_s2, b_veg, b_swe = res2.x
 
 # ==========================================
-# PAGE 2: BASIC MODEL (Cost Only)
+# PAGE 2: BASIC SP MODEL (Cost + ASCs)
 # ==========================================
 with tab2:
-    st.header("Basic Model (Cost Only)")
-    if total_students == 0:
-        st.warning("Waiting for class data...")
+    st.header("Basic SP Model")
+    if total_observations == 0:
+        st.warning("Waiting for data...")
     else:
-        st.success(f"**Estimated Cost Parameter (γ): {est_gamma:.4f}**")
-        st.markdown("*Notice how the model overpredicts the cheapest option (Salad) because it only knows about price!*")
+        st.markdown("*Because prices varied, we can now mathematically estimate Cost and ASCs simultaneously!*")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("γ (Cost)", f"{g1:.4f}")
+        c2.metric("ASC (Meatballs)", f"{asc_m1:.2f}")
+        c3.metric("ASC (Salad)", f"{asc_s1:.2f}")
         
-        V_est1 = est_gamma * base_costs
-        P_pred1 = np.exp(V_est1) / np.sum(np.exp(V_est1))
-        P_obs = np.array(counts) / total_students
+        # Calculate Average Predicted Probabilities over the sample
+        P_pred1 = np.zeros(3)
+        for r in shared_data:
+            v_m = g1 * r['p_m'] + asc_m1
+            v_s = g1 * r['p_s'] + asc_s1
+            v_b = g1 * r['p_b']
+            exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
+            P_pred1 += exp_v / np.sum(exp_v)
+        P_pred1 /= total_observations
+        P_obs = np.array(counts) / total_observations
 
         fig2, ax2 = plt.subplots(figsize=(7, 4))
         x = np.arange(len(labels))
-        ax2.bar(x - 0.15, P_obs * 100, 0.3, label='Observed (Real Votes)', color='#1f77b4')
-        ax2.bar(x + 0.15, P_pred1 * 100, 0.3, label='Predicted (Basic MNL)', color='#ff7f0e')
+        ax2.bar(x - 0.15, P_obs * 100, 0.3, label='Observed Shares', color='#1f77b4')
+        ax2.bar(x + 0.15, P_pred1 * 100, 0.3, label='Predicted (Model 1)', color='#ff7f0e')
         ax2.set_ylabel('Market Share (%)')
         ax2.set_xticks(x)
         ax2.set_xticklabels(labels)
@@ -153,36 +179,34 @@ with tab2:
         st.pyplot(fig2)
 
 # ==========================================
-# PAGE 3: ADVANCED MODEL (ASCs & Dummies)
+# PAGE 3: ADVANCED SP MODEL (Demographics)
 # ==========================================
 with tab3:
-    st.header("Advanced Micro-Model")
-    if total_students == 0:
-        st.warning("Waiting for class data...")
+    st.header("Advanced SP Model")
+    if total_observations == 0:
+        st.warning("Waiting for data...")
     else:
-        st.markdown("We lock the Cost parameter from Tab 2, and now estimate inherent preferences (ASCs) and demographics!")
+        st.markdown("Adding individual demographics to explain *why* people have those ASC baseline preferences.")
         
-        colA, colB = st.columns(2)
-        colA.metric("ASC (Meatballs)", f"{asc_m:.2f}")
-        colA.metric("ASC (Salad)", f"{asc_s:.2f}")
-        colB.metric("β (Vegetarian ➔ Salad)", f"{b_veg:.2f}")
-        colB.metric("β (Swedish ➔ Meatballs)", f"{b_swe:.2f}")
+        c1, c2 = st.columns(2)
+        c1.metric("γ (Cost)", f"{g2:.4f}")
+        c1.metric("ASC (Meatballs)", f"{asc_m2:.2f}")
+        c1.metric("ASC (Salad)", f"{asc_s2:.2f}")
+        c2.metric("β (Vegetarian ➔ Salad)", f"{b_veg:.2f}")
+        c2.metric("β (Swedish ➔ Meatballs)", f"{b_swe:.2f}")
 
-        # Calculate Predicted Probabilities using SAMPLE ENUMERATION!
         P_pred2 = np.zeros(3)
-        for row in shared_data:
-            v_m = est_gamma * 109 + asc_m + b_swe * row['swe']
-            v_s = est_gamma * 79 + asc_s + b_veg * row['veg']
-            v_b = est_gamma * 129
+        for r in shared_data:
+            v_m = g2 * r['p_m'] + asc_m2 + b_swe * r['swe']
+            v_s = g2 * r['p_s'] + asc_s2 + b_veg * r['veg']
+            v_b = g2 * r['p_b']
             exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
             P_pred2 += exp_v / np.sum(exp_v)
-        P_pred2 /= total_students # Average across population
+        P_pred2 /= total_observations
 
-        st.markdown("### Model Fit: The ASC Effect")
-        st.markdown("*Notice how adding ASCs forces the predicted shares to perfectly match reality!*")
         fig3, ax3 = plt.subplots(figsize=(7, 4))
         x = np.arange(len(labels))
-        ax3.bar(x - 0.15, P_obs * 100, 0.3, label='Observed', color='#1f77b4')
+        ax3.bar(x - 0.15, P_obs * 100, 0.3, label='Observed Shares', color='#1f77b4')
         ax3.bar(x + 0.15, P_pred2 * 100, 0.3, label='Predicted (Advanced)', color='#2ca02c')
         ax3.set_ylabel('Market Share (%)')
         ax3.set_xticks(x)
@@ -195,30 +219,29 @@ with tab3:
 # ==========================================
 with tab4:
     st.header("Policy Forecast")
-    if total_students == 0:
-        st.warning("Waiting for class data...")
+    if total_observations == 0:
+        st.warning("Waiting for data...")
     else:
-        st.markdown("Forecast using our advanced Sample Enumeration model:")
-        new_m = st.slider("New Price for Meatballs (SEK)", 50, 200, 109, 1)
-        new_s = st.slider("New Price for Salad (SEK)", 50, 200, 79, 1)
-        new_stew = st.slider("New Price for Beef Stew (SEK)", 50, 200, 129, 1)
+        st.markdown("Sample Enumeration using the Advanced Model.")
+        new_m = st.slider("New Base Price Meatballs (SEK)", 50, 200, 109, 1)
+        new_s = st.slider("New Base Price Salad (SEK)", 50, 200, 79, 1)
+        new_b = st.slider("New Base Price Beef Stew (SEK)", 50, 200, 129, 1)
 
-        # Forecasting using Sample Enumeration over the collected microdata
         P_forecast = np.zeros(3)
-        for row in shared_data:
-            v_m = est_gamma * new_m + asc_m + b_swe * row['swe']
-            v_s = est_gamma * new_s + asc_s + b_veg * row['veg']
-            v_b = est_gamma * new_stew
+        for r in shared_data:
+            v_m = g2 * new_m + asc_m2 + b_swe * r['swe']
+            v_s = g2 * new_s + asc_s2 + b_veg * r['veg']
+            v_b = g2 * new_b
             exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
             P_forecast += exp_v / np.sum(exp_v)
-        P_forecast /= total_students
+        P_forecast /= total_observations
 
         fig4, ax4 = plt.subplots(figsize=(7, 4.5))
         x = np.arange(len(labels))
         ax4.bar(x, P_forecast * 100, 0.4, color='#9467bd')
         ax4.set_ylabel('Forecasted Market Share (%)')
         ax4.set_xticks(x)
-        ax4.set_xticklabels([f"{l}\n({c} SEK)" for l, c in zip(labels, [new_m, new_s, new_stew])])
+        ax4.set_xticklabels([f"{l}\n({c} SEK)" for l, c in zip(labels, [new_m, new_s, new_b])])
         ax4.set_ylim(0, 100)
         st.pyplot(fig4)
 
@@ -228,22 +251,32 @@ with tab4:
 with st.expander("⚙️ Instructor Tools"):
     admin_password = st.text_input("Enter password", type="password")
     if admin_password == "admin123": 
-        if st.button("🧪 Inject 25 Test Votes"):
-            # Creates realistic dummy microdata: 
-            # Meatballs: 10 Swedes, 2 others. Salad: 7 Vegetarians, 1 other. Stew: 5 mixed.
-            test_data = [{'choice': 0, 'veg': 0, 'swe': 1} for _ in range(10)] + \
-                        [{'choice': 0, 'veg': 0, 'swe': 0} for _ in range(2)] + \
-                        [{'choice': 1, 'veg': 1, 'swe': 1} for _ in range(2)] + \
-                        [{'choice': 1, 'veg': 1, 'swe': 0} for _ in range(5)] + \
-                        [{'choice': 1, 'veg': 0, 'swe': 0} for _ in range(1)] + \
-                        [{'choice': 2, 'veg': 0, 'swe': 1} for _ in range(2)] + \
-                        [{'choice': 2, 'veg': 0, 'swe': 0} for _ in range(3)]
+        if st.button("🧪 Inject 30 Test SP Choices (10 Students)"):
+            import random
             shared_data.clear()
-            shared_data.extend(test_data)
+            # Simulate 10 students making 3 choices each
+            for _ in range(10):
+                is_swe = np.random.choice([0, 1])
+                is_veg = np.random.choice([0, 1]) if not is_swe else 0 # Swedes less likely veg here for data shape
+                for _ in range(3):
+                    p_m = np.random.choice([89, 109, 129])
+                    p_s = np.random.choice([59, 79, 99])
+                    p_b = np.random.choice([109, 129, 149])
+                    
+                    # Generative behavior based on true parameters to make charts look right
+                    v_m = -0.015 * p_m + 1.2 + (1.5 * is_swe)
+                    v_s = -0.015 * p_s + 0.5 + (2.5 * is_veg)
+                    v_b = -0.015 * p_b + 0
+                    
+                    probs = np.exp([v_m, v_s, v_b]) / np.sum(np.exp([v_m, v_s, v_b]))
+                    choice = np.random.choice([0, 1, 2], p=probs)
+                    shared_data.append({'choice': choice, 'veg': is_veg, 'swe': is_swe, 'p_m': p_m, 'p_s': p_s, 'p_b': p_b})
+            
             st.session_state.has_voted = True
             st.rerun()
 
         if st.button("🗑️ Reset All Class Votes"):
             shared_data.clear()
             st.session_state.has_voted = False
+            st.session_state.task_idx = 0
             st.rerun()
