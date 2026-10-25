@@ -20,7 +20,7 @@ st.title("🍔 Discrete Choice Experiment")
 # --- 1. GLOBAL MICRODATA MEMORY ---
 @st.cache_resource
 def get_shared_data():
-    return [] # Stores: {'choice': 0, 'p_m': 109, 'p_s': 79, 'p_b': 129}
+    return [] 
 
 shared_data = get_shared_data()
 
@@ -29,8 +29,6 @@ if 'has_voted' not in st.session_state:
     st.session_state.has_voted = False
     st.session_state.task_idx = 0
     
-    # PERFECT SP OVERLAP: All dishes pull from the exact same price pool.
-    # The rank order of prices will scramble completely across the 4 scenarios.
     price_levels = [79, 99, 119, 139, 159]
     st.session_state.scenarios = [
         {'m': int(np.random.choice(price_levels)),
@@ -61,7 +59,7 @@ with tab1:
 
         img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
         img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
-        img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
+        img_stew = "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&h=250&q=80"
         img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
         st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
@@ -99,7 +97,7 @@ with tab1:
         st.pyplot(fig1)
 
 # ==========================================
-# MLE ESTIMATION (Runs blindly on the data)
+# MLE ESTIMATION
 # ==========================================
 est_gamma, est_asc_m, est_asc_s = 0.0, 0.0, 0.0
 
@@ -116,41 +114,52 @@ if total_obs > 0:
             LL += np.log(p[r['choice']] + 1e-10)
         return -LL
     
-    # This optimizer has NO IDEA what parameters the Instructor Tool used. 
-    # It solves it purely from the data.
     res = minimize(nll_mnl, x0=[-0.01, 0, 0], bounds=[(-1.0, 0.1), (None, None), (None, None)])
     est_gamma, est_asc_m, est_asc_s = res.x
 
 # ==========================================
-# PAGE 2: MODEL ESTIMATION (Results)
+# PAGE 2: MODEL ESTIMATION (Monte Carlo)
 # ==========================================
 with tab2:
     st.header("MNL Model Estimation")
     if total_obs == 0:
         st.warning("Waiting for data...")
     else:
-        st.markdown(f"*Estimated on {total_obs} choices. Because prices varied across tasks, we can mathematically identify both Cost and ASCs.*")
         c1, c2, c3 = st.columns(3)
-        # Displaying the ESTIMATED parameters, not the DGP parameters!
         c1.metric("γ (Cost)", f"{est_gamma:.4f}")
         c2.metric("ASC (Meatballs)", f"{est_asc_m:.2f}")
         c3.metric("ASC (Salad)", f"{est_asc_s:.2f}")
         
-        # Calculate Average Predicted Probabilities over the current sample
-        P_pred = np.zeros(3)
+        st.markdown("#### Stochastic Microsimulation")
+        st.markdown("Instead of analytical probabilities, we add a random Gumbel error to each student's utility to simulate a discrete choice.")
+        
+        # New Slider for simulation iterations
+        num_sims = st.slider("Monte Carlo Iterations per Student", min_value=1, max_value=100, value=1, key="sim1")
+        
+        P_pred_counts = np.zeros(3)
+        np.random.seed(42) # Keeps the charts from jittering randomly when you move the slider
+        
         for r in shared_data:
             v_m = est_gamma * r['p_m'] + est_asc_m
             v_s = est_gamma * r['p_s'] + est_asc_s
             v_b = est_gamma * r['p_b']
-            exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
-            P_pred += exp_v / np.sum(exp_v)
-        P_pred /= total_obs
+            
+            for _ in range(num_sims):
+                # Add random Gumbel noise to deterministic utility
+                eps = np.random.gumbel(loc=0, scale=1, size=3)
+                U = np.array([v_m, v_s, v_b]) + eps
+                
+                # Agent strictly chooses the max utility
+                choice = np.argmax(U)
+                P_pred_counts[choice] += 1
+                
+        P_pred = P_pred_counts / (total_obs * num_sims)
         P_obs = np.array(counts) / total_obs
 
         fig2, ax2 = plt.subplots(figsize=(7, 4))
         x = np.arange(len(labels))
         ax2.bar(x - 0.15, P_obs * 100, 0.3, label='Observed Shares', color='#1f77b4')
-        ax2.bar(x + 0.15, P_pred * 100, 0.3, label='Predicted (MNL Model)', color='#ff7f0e')
+        ax2.bar(x + 0.15, P_pred * 100, 0.3, label='Predicted (Monte Carlo)', color='#ff7f0e')
         ax2.set_ylabel('Market Share (%)')
         ax2.set_xticks(x)
         ax2.set_xticklabels(labels)
@@ -158,27 +167,34 @@ with tab2:
         st.pyplot(fig2)
 
 # ==========================================
-# PAGE 3: POLICY FORECAST
+# PAGE 3: POLICY FORECAST (Monte Carlo)
 # ==========================================
 with tab3:
     st.header("Policy Forecast")
     if total_obs == 0:
         st.warning("Waiting for data...")
     else:
-        st.markdown("Test new price policies. The model predicts aggregate market shares based on the estimated parameters.")
         new_m = st.slider("New Price Meatballs (SEK)", 50, 200, 109, 1)
         new_s = st.slider("New Price Salad (SEK)", 50, 200, 79, 1)
         new_b = st.slider("New Price Beef Stew (SEK)", 50, 200, 129, 1)
 
-        # Sample Enumeration for forecasting
-        P_forecast = np.zeros(3)
+        num_sims_forecast = st.slider("Monte Carlo Iterations per Student", min_value=1, max_value=100, value=10, key="sim2")
+
+        P_forecast_counts = np.zeros(3)
+        np.random.seed(123) 
+        
         for r in shared_data:
             v_m = est_gamma * new_m + est_asc_m
             v_s = est_gamma * new_s + est_asc_s
             v_b = est_gamma * new_b
-            exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
-            P_forecast += exp_v / np.sum(exp_v)
-        P_forecast /= total_obs
+            
+            for _ in range(num_sims_forecast):
+                eps = np.random.gumbel(loc=0, scale=1, size=3)
+                U = np.array([v_m, v_s, v_b]) + eps
+                choice = np.argmax(U)
+                P_forecast_counts[choice] += 1
+                
+        P_forecast = P_forecast_counts / (total_obs * num_sims_forecast)
 
         fig3, ax3 = plt.subplots(figsize=(7, 4.5))
         x = np.arange(len(labels))
@@ -206,13 +222,11 @@ with st.expander("⚙️ Instructor Tools"):
             price_levels = [79, 99, 119, 139, 159]
             
             for _ in range(num_individuals):
-                for _ in range(4): # 4 choices per student
+                for _ in range(4):
                     p_m = np.random.choice(price_levels)
                     p_s = np.random.choice(price_levels)
                     p_b = np.random.choice(price_levels)
                     
-                    # This calculates the TRUE probability based on the hidden DGP parameters.
-                    # It creates the realistic pseudo-choices for the MLE to analyze later.
                     v_m = -0.015 * p_m + 1.2 
                     v_s = -0.015 * p_s + 0.5 
                     v_b = -0.015 * p_b + 0
