@@ -59,7 +59,7 @@ with tab1:
 
         img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
         img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
-        img_stew = "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&h=250&q=80"
+        img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
         img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
         st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
