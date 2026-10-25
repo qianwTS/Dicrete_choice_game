@@ -59,7 +59,7 @@ with tab1:
 
         img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
         img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
-        img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
+        img_stew = "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&h=250&q=80"
         img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
         st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
@@ -118,7 +118,7 @@ if total_obs > 0:
     est_gamma, est_asc_m, est_asc_s = res.x
 
 # ==========================================
-# PAGE 2: MODEL ESTIMATION (Monte Carlo)
+# PAGE 2: MODEL ESTIMATION (Results)
 # ==========================================
 with tab2:
     st.header("MNL Model Estimation")
@@ -130,44 +130,56 @@ with tab2:
         c2.metric("ASC (Meatballs)", f"{est_asc_m:.2f}")
         c3.metric("ASC (Salad)", f"{est_asc_s:.2f}")
         
-        st.markdown("#### Stochastic Microsimulation")
-        st.markdown("Instead of analytical probabilities, we add a random Gumbel error to each student's utility to simulate a discrete choice.")
+        st.markdown("#### Aggregate vs. Disaggregate Prediction")
+        st.caption("Drag the slider to see the difference between Analytical Probabilities (Macro) and Stochastic Microsimulation (Micro).")
         
-        # New Slider for simulation iterations
         num_sims = st.slider("Monte Carlo Iterations per Student", min_value=1, max_value=100, value=1, key="sim1")
         
-        P_pred_counts = np.zeros(3)
-        np.random.seed(42) # Keeps the charts from jittering randomly when you move the slider
+        P_pred_ana = np.zeros(3)
+        P_pred_mc_counts = np.zeros(3)
+        
+        # We set a seed so the chart converges smoothly when you drag the slider
+        np.random.seed(42) 
         
         for r in shared_data:
             v_m = est_gamma * r['p_m'] + est_asc_m
             v_s = est_gamma * r['p_s'] + est_asc_s
             v_b = est_gamma * r['p_b']
             
+            # 1. Analytical Calculation (Exact fractions)
+            exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
+            P_pred_ana += exp_v / np.sum(exp_v)
+            
+            # 2. Monte Carlo Simulation (Discrete random choices)
             for _ in range(num_sims):
-                # Add random Gumbel noise to deterministic utility
                 eps = np.random.gumbel(loc=0, scale=1, size=3)
                 U = np.array([v_m, v_s, v_b]) + eps
-                
-                # Agent strictly chooses the max utility
                 choice = np.argmax(U)
-                P_pred_counts[choice] += 1
+                P_pred_mc_counts[choice] += 1
                 
-        P_pred = P_pred_counts / (total_obs * num_sims)
+        P_pred_ana /= total_obs
+        P_pred_mc = P_pred_mc_counts / (total_obs * num_sims)
         P_obs = np.array(counts) / total_obs
 
-        fig2, ax2 = plt.subplots(figsize=(7, 4))
+        # Plotting 3 Bars Side-by-Side
+        fig2, ax2 = plt.subplots(figsize=(8, 4.5))
         x = np.arange(len(labels))
-        ax2.bar(x - 0.15, P_obs * 100, 0.3, label='Observed Shares', color='#1f77b4')
-        ax2.bar(x + 0.15, P_pred * 100, 0.3, label='Predicted (Monte Carlo)', color='#ff7f0e')
+        width = 0.25
+        
+        ax2.bar(x - width, P_obs * 100, width, label='Observed (Real Data)', color='#1f77b4')
+        ax2.bar(x, P_pred_ana * 100, width, label='Analytical (Math)', color='#2ca02c')
+        ax2.bar(x + width, P_pred_mc * 100, width, label='Monte Carlo (Simulation)', color='#ff7f0e')
+        
         ax2.set_ylabel('Market Share (%)')
         ax2.set_xticks(x)
         ax2.set_xticklabels(labels)
-        ax2.legend()
+        ax2.legend(loc='upper right', bbox_to_anchor=(1.1, 1.15), fontsize='small')
         st.pyplot(fig2)
+        
+        st.info("💡 **Notice:** The green Analytical bar perfectly matches the blue Observed bar due to the ASCs. The orange Monte Carlo bar has simulation noise, but converges to match them perfectly as iterations increase (Law of Large Numbers).")
 
 # ==========================================
-# PAGE 3: POLICY FORECAST (Monte Carlo)
+# PAGE 3: POLICY FORECAST
 # ==========================================
 with tab3:
     st.header("Policy Forecast")
@@ -180,7 +192,8 @@ with tab3:
 
         num_sims_forecast = st.slider("Monte Carlo Iterations per Student", min_value=1, max_value=100, value=10, key="sim2")
 
-        P_forecast_counts = np.zeros(3)
+        P_forecast_ana = np.zeros(3)
+        P_forecast_mc_counts = np.zeros(3)
         np.random.seed(123) 
         
         for r in shared_data:
@@ -188,21 +201,32 @@ with tab3:
             v_s = est_gamma * new_s + est_asc_s
             v_b = est_gamma * new_b
             
+            # Analytical Forecast
+            exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
+            P_forecast_ana += exp_v / np.sum(exp_v)
+            
+            # Monte Carlo Forecast
             for _ in range(num_sims_forecast):
                 eps = np.random.gumbel(loc=0, scale=1, size=3)
                 U = np.array([v_m, v_s, v_b]) + eps
                 choice = np.argmax(U)
-                P_forecast_counts[choice] += 1
+                P_forecast_mc_counts[choice] += 1
                 
-        P_forecast = P_forecast_counts / (total_obs * num_sims_forecast)
+        P_forecast_ana /= total_obs
+        P_forecast_mc = P_forecast_mc_counts / (total_obs * num_sims_forecast)
 
-        fig3, ax3 = plt.subplots(figsize=(7, 4.5))
+        fig3, ax3 = plt.subplots(figsize=(8, 4.5))
         x = np.arange(len(labels))
-        ax3.bar(x, P_forecast * 100, 0.4, color='#9467bd')
+        width = 0.35
+        
+        ax3.bar(x - width/2, P_forecast_ana * 100, width, label='Analytical Forecast', color='#2ca02c')
+        ax3.bar(x + width/2, P_forecast_mc * 100, width, label='Monte Carlo Forecast', color='#ff7f0e')
+        
         ax3.set_ylabel('Forecasted Market Share (%)')
         ax3.set_xticks(x)
         ax3.set_xticklabels([f"{l}\n({c} SEK)" for l, c in zip(labels, [new_m, new_s, new_b])])
         ax3.set_ylim(0, 100)
+        ax3.legend()
         st.pyplot(fig3)
 
 # ==========================================
