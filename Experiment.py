@@ -306,7 +306,7 @@ with st.expander("⚙️ Instructor Tools"):
     if admin_password == "admin123": 
         
         st.markdown("#### Synthetic Population Injector")
-        st.caption("True DGP: γ=-0.015, ASC_m=1.2, ASC_s=0.5")
+        st.caption("True DGP: γ=-0.015, ASC_m=0.3, ASC_s= -0.1")
         
         num_individuals = st.selectbox("Select number of simulated students:", [25, 50, 75, 100, 125, 150, 175, 200])
         
