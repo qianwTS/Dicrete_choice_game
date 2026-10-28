@@ -320,8 +320,8 @@ with st.expander("⚙️ Instructor Tools"):
             price_levels = [79, 99, 119, 139, 159]
             
             true_gamma = -0.015
-            true_asc_m = 1.2
-            true_asc_s = 0.5
+            true_asc_m = 0.3
+            true_asc_s = -0.1
             
             for _ in range(num_individuals):
                 for _ in range(4):
