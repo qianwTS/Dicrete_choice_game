@@ -59,7 +59,7 @@ with tab1:
 
         img_meatballs = "https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=800&h=250&q=80"
         img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
-        img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
+        img_stew = img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
         img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
 
         st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
@@ -96,49 +96,68 @@ with tab1:
         ax1.spines['right'].set_visible(False)
         st.pyplot(fig1)
 
-# ==========================================
-# MLE ESTIMATION
-# ==========================================
+# Initialize global estimation variables so Tab 3 can read them
 est_gamma, est_asc_m, est_asc_s = 0.0, 0.0, 0.0
 
-if total_obs > 0:
-    def nll_mnl(params):
-        gamma, a_m, a_s = params
-        LL = 0
-        for r in shared_data:
-            v_m = gamma * r['p_m'] + a_m
-            v_s = gamma * r['p_s'] + a_s
-            v_b = gamma * r['p_b']
-            exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
-            p = exp_v / np.sum(exp_v)
-            LL += np.log(p[r['choice']] + 1e-10)
-        return -LL
-    
-    res = minimize(nll_mnl, x0=[-0.01, 0, 0], bounds=[(-1.0, 0.1), (None, None), (None, None)])
-    est_gamma, est_asc_m, est_asc_s = res.x
-
 # ==========================================
-# PAGE 2: MODEL ESTIMATION (Results)
+# PAGE 2: MODEL ESTIMATION (Results & Toggle)
 # ==========================================
 with tab2:
     st.header("MNL Model Estimation")
     if total_obs == 0:
         st.warning("Waiting for data...")
     else:
+        st.markdown("#### Model Specification")
+        # The new toggle for ASCs
+        estimate_ascs = st.checkbox("Include Alternative Specific Constants (ASCs)", value=True)
+        
+        # MLE Estimation Block
+        if estimate_ascs:
+            # Estimate 3 parameters: Gamma, ASC_m, ASC_s
+            def nll_mnl_full(params):
+                gamma, a_m, a_s = params
+                LL = 0
+                for r in shared_data:
+                    v_m = gamma * r['p_m'] + a_m
+                    v_s = gamma * r['p_s'] + a_s
+                    v_b = gamma * r['p_b']
+                    exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
+                    p = exp_v / np.sum(exp_v)
+                    LL += np.log(p[r['choice']] + 1e-10)
+                return -LL
+            
+            res = minimize(nll_mnl_full, x0=[-0.01, 0, 0], bounds=[(-1.0, 0.1), (None, None), (None, None)])
+            est_gamma, est_asc_m, est_asc_s = res.x
+        else:
+            # Estimate 1 parameter only: Gamma (ASCs forced to 0)
+            def nll_mnl_no_ascs(params):
+                gamma = params[0]
+                LL = 0
+                for r in shared_data:
+                    v_m = gamma * r['p_m'] + 0
+                    v_s = gamma * r['p_s'] + 0
+                    v_b = gamma * r['p_b']
+                    exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
+                    p = exp_v / np.sum(exp_v)
+                    LL += np.log(p[r['choice']] + 1e-10)
+                return -LL
+                
+            res = minimize(nll_mnl_no_ascs, x0=[-0.01], bounds=[(-1.0, 0.1)])
+            est_gamma = res.x[0]
+            est_asc_m, est_asc_s = 0.0, 0.0
+
+        # Display estimated metrics
         c1, c2, c3 = st.columns(3)
         c1.metric("γ (Cost)", f"{est_gamma:.4f}")
         c2.metric("ASC (Meatballs)", f"{est_asc_m:.2f}")
         c3.metric("ASC (Salad)", f"{est_asc_s:.2f}")
         
         st.markdown("#### Aggregate vs. Disaggregate Prediction")
-        st.caption("Drag the slider to see the difference between Analytical Probabilities (Macro) and Stochastic Microsimulation (Micro).")
-        
         num_sims = st.slider("Monte Carlo Iterations per Student", min_value=1, max_value=100, value=1, key="sim1")
         
         P_pred_ana = np.zeros(3)
         P_pred_mc_counts = np.zeros(3)
         
-        # We set a seed so the chart converges smoothly when you drag the slider
         np.random.seed(42) 
         
         for r in shared_data:
@@ -146,11 +165,11 @@ with tab2:
             v_s = est_gamma * r['p_s'] + est_asc_s
             v_b = est_gamma * r['p_b']
             
-            # 1. Analytical Calculation (Exact fractions)
+            # Analytical Calculation
             exp_v = np.exp([v_m, v_s, v_b] - np.max([v_m, v_s, v_b]))
             P_pred_ana += exp_v / np.sum(exp_v)
             
-            # 2. Monte Carlo Simulation (Discrete random choices)
+            # Monte Carlo Simulation
             for _ in range(num_sims):
                 eps = np.random.gumbel(loc=0, scale=1, size=3)
                 U = np.array([v_m, v_s, v_b]) + eps
@@ -176,7 +195,8 @@ with tab2:
         ax2.legend(loc='upper right', bbox_to_anchor=(1.1, 1.15), fontsize='small')
         st.pyplot(fig2)
         
-        st.info("💡 **Notice:** The green Analytical bar perfectly matches the blue Observed bar due to the ASCs. The orange Monte Carlo bar has simulation noise, but converges to match them perfectly as iterations increase (Law of Large Numbers).")
+        if not estimate_ascs:
+            st.warning("⚠️ **Notice:** Because you turned off the ASCs, the green Analytical bar no longer perfectly matches the observed data. The model cannot calibrate to baseline preferences!")
 
 # ==========================================
 # PAGE 3: POLICY FORECAST
