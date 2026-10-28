@@ -260,43 +260,78 @@ with tab2:
 # ==========================================
 with tab3:
     st.header("Policy Forecast (IIA Test)")
-    st.markdown("Test an extreme price change to see how the two models route the substituting passengers. Notice who gets the lost Meatball customers!")
+    st.markdown("Set normal prices in **Scenario A**, then spike the price of Meatballs in **Scenario B**. Watch how the lost customers are re-distributed.")
     
     if total_obs == 0:
         st.warning("Waiting for data...")
     else:
-        new_m = st.slider("New Price Meatballs (SEK)", 50, 200, 109, 1)
-        new_s = st.slider("New Price Salad (SEK)", 50, 200, 79, 1)
-        new_b = st.slider("New Price Beef Stew (SEK)", 50, 200, 129, 1)
-
-        P_fcst_mnl = np.zeros(3)
-        P_fcst_nl = np.zeros(3)
+        colA, colB = st.columns(2)
         
-        for r in shared_data:
-            # Forecast MNL
-            v_mnl = [est_gamma*new_m + est_asc_m, est_gamma*new_s + est_asc_s, est_gamma*new_b]
-            P_fcst_mnl += np.exp(v_mnl - np.max(v_mnl)) / np.sum(np.exp(v_mnl - np.max(v_mnl)))
+        # --- SCENARIO A (BASELINE) ---
+        with colA:
+            st.subheader("Scenario A (Baseline)")
+            base_m = st.slider("Meatballs (SEK)", 50, 200, 109, 1, key="base_m")
+            base_s = st.slider("Salad (SEK)", 50, 200, 79, 1, key="base_s")
+            base_b = st.slider("Beef Stew (SEK)", 50, 200, 129, 1, key="base_b")
             
-            # Forecast NL
-            nl_p, _,_,_,_,_ = calc_nl_probs(nl_gamma, nl_asc_m, nl_asc_s, nl_lambda, new_m, new_s, new_b)
-            P_fcst_nl += np.array(nl_p)
+            P_base_mnl = np.zeros(3)
+            P_base_nl = np.zeros(3)
+            
+            for r in shared_data:
+                v_mnl = [est_gamma*base_m + est_asc_m, est_gamma*base_s + est_asc_s, est_gamma*base_b]
+                P_base_mnl += np.exp(v_mnl - np.max(v_mnl)) / np.sum(np.exp(v_mnl - np.max(v_mnl)))
                 
-        P_fcst_mnl /= total_obs
-        P_fcst_nl /= total_obs
+                nl_p, _,_,_,_,_ = calc_nl_probs(nl_gamma, nl_asc_m, nl_asc_s, nl_lambda, base_m, base_s, base_b)
+                P_base_nl += np.array(nl_p)
+                    
+            P_base_mnl /= total_obs
+            P_base_nl /= total_obs
 
-        fig3, ax3 = plt.subplots(figsize=(8, 4.5))
-        x = np.arange(len(labels))
-        width = 0.35
-        
-        ax3.bar(x - width/2, P_fcst_mnl * 100, width, label='MNL Forecast (Proportional)', color='#2ca02c')
-        ax3.bar(x + width/2, P_fcst_nl * 100, width, label='NL Forecast (Correlated)', color='#9467bd')
-        
-        ax3.set_ylabel('Forecasted Market Share (%)')
-        ax3.set_xticks(x)
-        ax3.set_xticklabels([f"{l}\n({c} SEK)" for l, c in zip(labels, [new_m, new_s, new_b])])
-        ax3.set_ylim(0, 100)
-        ax3.legend()
-        st.pyplot(fig3)
+            figA, axA = plt.subplots(figsize=(6, 4))
+            x = np.arange(len(labels))
+            width = 0.35
+            
+            axA.bar(x - width/2, P_base_mnl * 100, width, label='MNL Forecast', color='#2ca02c')
+            axA.bar(x + width/2, P_base_nl * 100, width, label='NL Forecast', color='#9467bd')
+            
+            axA.set_ylabel('Market Share (%)')
+            axA.set_xticks(x)
+            axA.set_xticklabels(labels)
+            axA.set_ylim(0, 100) # Locked Y-axis for easy comparison
+            axA.legend()
+            st.pyplot(figA)
+
+        # --- SCENARIO B (POLICY SHOCK) ---
+        with colB:
+            st.subheader("Scenario B (Policy Shock)")
+            pol_m = st.slider("Meatballs (SEK)", 50, 200, 200, 1, key="pol_m") # Default to 200 to show the shock instantly
+            pol_s = st.slider("Salad (SEK)", 50, 200, 79, 1, key="pol_s")
+            pol_b = st.slider("Beef Stew (SEK)", 50, 200, 129, 1, key="pol_b")
+            
+            P_pol_mnl = np.zeros(3)
+            P_pol_nl = np.zeros(3)
+            
+            for r in shared_data:
+                v_mnl = [est_gamma*pol_m + est_asc_m, est_gamma*pol_s + est_asc_s, est_gamma*pol_b]
+                P_pol_mnl += np.exp(v_mnl - np.max(v_mnl)) / np.sum(np.exp(v_mnl - np.max(v_mnl)))
+                
+                nl_p, _,_,_,_,_ = calc_nl_probs(nl_gamma, nl_asc_m, nl_asc_s, nl_lambda, pol_m, pol_s, pol_b)
+                P_pol_nl += np.array(nl_p)
+                    
+            P_pol_mnl /= total_obs
+            P_pol_nl /= total_obs
+
+            figB, axB = plt.subplots(figsize=(6, 4))
+            
+            axB.bar(x - width/2, P_pol_mnl * 100, width, label='MNL Forecast', color='#2ca02c')
+            axB.bar(x + width/2, P_pol_nl * 100, width, label='NL Forecast', color='#9467bd')
+            
+            axB.set_ylabel('Market Share (%)')
+            axB.set_xticks(x)
+            axB.set_xticklabels(labels)
+            axB.set_ylim(0, 100) # Locked Y-axis for easy comparison
+            axB.legend()
+            st.pyplot(figB)
 
 # ==========================================
 # HIDDEN INSTRUCTOR TOOLS (Adjustable DGP)
