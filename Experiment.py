@@ -270,9 +270,9 @@ with tab3:
         # --- SCENARIO A (BASELINE) ---
         with colA:
             st.subheader("Scenario A (Baseline)")
-            base_m = st.slider("Meatballs (SEK)", 50, 200, 109, 1, key="base_m")
-            base_s = st.slider("Salad (SEK)", 50, 200, 79, 1, key="base_s")
-            base_b = st.slider("Beef Stew (SEK)", 50, 200, 129, 1, key="base_b")
+            base_m = st.slider("Meatballs (SEK)", 100, 200, 100, 5, key="base_m")
+            base_s = st.slider("Salad (SEK)", 100, 200, 100, 5, key="base_s")
+            base_b = st.slider("Beef Stew (SEK)", 100, 200, 100, 5, key="base_b")
             
             P_base_mnl = np.zeros(3)
             P_base_nl = np.zeros(3)
@@ -291,22 +291,28 @@ with tab3:
             x = np.arange(len(labels))
             width = 0.35
             
-            axA.bar(x - width/2, P_base_mnl * 100, width, label='MNL Forecast', color='#2ca02c')
-            axA.bar(x + width/2, P_base_nl * 100, width, label='NL Forecast', color='#9467bd')
+            bars1_A = axA.bar(x - width/2, P_base_mnl * 100, width, label='MNL Forecast', color='#2ca02c')
+            bars2_A = axA.bar(x + width/2, P_base_nl * 100, width, label='NL Forecast', color='#9467bd')
+            
+            # Add integer percentage labels to bars
+            axA.bar_label(bars1_A, fmt='%.0f%%', padding=3, fontsize=10, fontweight='bold', color='#2ca02c')
+            axA.bar_label(bars2_A, fmt='%.0f%%', padding=3, fontsize=10, fontweight='bold', color='#9467bd')
             
             axA.set_ylabel('Market Share (%)')
             axA.set_xticks(x)
             axA.set_xticklabels(labels)
             axA.set_ylim(0, 100) # Locked Y-axis for easy comparison
             axA.legend()
+            axA.spines['top'].set_visible(False)
+            axA.spines['right'].set_visible(False)
             st.pyplot(figA)
 
         # --- SCENARIO B (POLICY SHOCK) ---
         with colB:
             st.subheader("Scenario B (Policy Shock)")
-            pol_m = st.slider("Meatballs (SEK)", 50, 200, 200, 1, key="pol_m") # Default to 200 to show the shock instantly
-            pol_s = st.slider("Salad (SEK)", 50, 200, 79, 1, key="pol_s")
-            pol_b = st.slider("Beef Stew (SEK)", 50, 200, 129, 1, key="pol_b")
+            pol_m = st.slider("Meatballs (SEK)", 100, 200, 100, 5, key="pol_m") # Default to 200 to show the shock instantly
+            pol_s = st.slider("Salad (SEK)", 100, 200, 100, 5,key="pol_s")
+            pol_b = st.slider("Beef Stew (SEK)", 100, 200, 100, 5, key="pol_b")
             
             P_pol_mnl = np.zeros(3)
             P_pol_nl = np.zeros(3)
@@ -323,14 +329,19 @@ with tab3:
 
             figB, axB = plt.subplots(figsize=(6, 4))
             
-            axB.bar(x - width/2, P_pol_mnl * 100, width, label='MNL Forecast', color='#2ca02c')
-            axB.bar(x + width/2, P_pol_nl * 100, width, label='NL Forecast', color='#9467bd')
+            bars1_B = axB.bar(x - width/2, P_pol_mnl * 100, width, label='MNL Forecast', color='#2ca02c')
+            bars2_B = axB.bar(x + width/2, P_pol_nl * 100, width, label='NL Forecast', color='#9467bd')
+            
+            axB.bar_label(bars1_B, fmt='%.0f%%', padding=3, fontsize=10, fontweight='bold', color='#2ca02c')
+            axB.bar_label(bars2_B, fmt='%.0f%%', padding=3, fontsize=10, fontweight='bold', color='#9467bd')
             
             axB.set_ylabel('Market Share (%)')
             axB.set_xticks(x)
             axB.set_xticklabels(labels)
-            axB.set_ylim(0, 100) # Locked Y-axis for easy comparison
+            axB.set_ylim(0, 110) # Slightly increased to fit the labels
             axB.legend()
+            axB.spines['top'].set_visible(False)
+            axB.spines['right'].set_visible(False)
             st.pyplot(figB)
 
 # ==========================================
