@@ -46,6 +46,9 @@ tab1, tab2, tab3 = st.tabs(["1. Survey", "2. Model Estimation", "3. Policy Forec
 # ==========================================
 # PAGE 1: REPEATED SP EXPERIMENT (4 Tasks)
 # ==========================================
+# ==========================================
+# PAGE 1: REPEATED SP EXPERIMENT (4 Tasks)
+# ==========================================
 with tab1:
     if st.session_state.has_voted:
         st.success("✅ All 4 scenarios completed! Watch the live data update below.")
@@ -61,23 +64,29 @@ with tab1:
         img_salad = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&h=250&q=80"
         img_stew = img_stew = "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&h=250&q=80"
         img_style = "width: 100%; height: 90px; object-fit: cover; border-radius: 8px; margin-bottom: 5px;"
+        
+        # Grab the current task index to make the button keys unique
+        idx = st.session_state.task_idx 
 
         st.markdown(f'<img src="{img_meatballs}" style="{img_style}">', unsafe_allow_html=True)
-        if st.button(f"🧆 Meatballs ({p_m} SEK)", use_container_width=True, key="btn_m"):
+        # FIX: Added _{idx} to the key
+        if st.button(f"🧆 Meatballs ({p_m} SEK)", use_container_width=True, key=f"btn_m_{idx}"):
             shared_data.append({'choice': 0, 'p_m': p_m, 'p_s': p_s, 'p_b': p_b})
             st.session_state.task_idx += 1
             if st.session_state.task_idx >= 4: st.session_state.has_voted = True
             st.rerun()
 
         st.markdown(f'<img src="{img_salad}" style="{img_style}">', unsafe_allow_html=True)
-        if st.button(f"🥗 Fresh Salad ({p_s} SEK)", use_container_width=True, key="btn_s"):
+        # FIX: Added _{idx} to the key
+        if st.button(f"🥗 Fresh Salad ({p_s} SEK)", use_container_width=True, key=f"btn_s_{idx}"):
             shared_data.append({'choice': 1, 'p_m': p_m, 'p_s': p_s, 'p_b': p_b})
             st.session_state.task_idx += 1
             if st.session_state.task_idx >= 4: st.session_state.has_voted = True
             st.rerun()
 
         st.markdown(f'<img src="{img_stew}" style="{img_style}">', unsafe_allow_html=True)
-        if st.button(f"🥘 Beef Stew ({p_b} SEK)", use_container_width=True, key="btn_stew"):
+        # FIX: Added _{idx} to the key
+        if st.button(f"🥘 Beef Stew ({p_b} SEK)", use_container_width=True, key=f"btn_stew_{idx}"):
             shared_data.append({'choice': 2, 'p_m': p_m, 'p_s': p_s, 'p_b': p_b})
             st.session_state.task_idx += 1
             if st.session_state.task_idx >= 4: st.session_state.has_voted = True
